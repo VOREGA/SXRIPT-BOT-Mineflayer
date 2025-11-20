@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Bot Control</title>
+    <style>
+        /* GENEL STİL AYARLARI */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #1e1e1e; 
+            color: #d4d4d4; 
+            margin: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+        h1 { color: #4ec9b0; margin-bottom: 10px; }
+        h2 { border-bottom: 2px solid #4ec9b0; padding-bottom: 5px; color: #9cdcfe; margin-top: 0; }
+        h3 { color: #dcdcaa; margin-bottom: 5px; }
+        h4 { color: #608b4e; margin-bottom: 5px; margin-top: 15px; }
+
+        /* DİL BUTONU */
+        #langBtn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #2d2d2d;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 8px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        #langBtn:hover { background: #444; }
+
+        /* KONTEYNER YAPISI */
+        .container { 
+            background-color: #252526; 
+            border: 1px solid #373737; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin-bottom: 15px; 
+            width: 90%; 
+            max-width: 850px; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); 
+        }
+
+        /* GÖRSEL PANEL STİLLERİ */
+        .visual-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
+        .frame-box {
+            background: #000; border: 2px solid #373737; border-radius: 5px;
+            width: 48%; min-width: 350px; height: 350px; position: relative;
+        }
+        .frame-box iframe { width: 100%; height: 100%; border: none; }
+        .frame-title {
+            position: absolute; top: 0; left: 0; background: rgba(0,0,0,0.7);
+            color: #fff; padding: 2px 8px; font-size: 0.8em; border-bottom-right-radius: 5px;
+        }
+        .inv-controls {
+            margin-top: 10px; padding: 10px; background: #2d2d2d;
+            border-radius: 5px; display: flex; align-items: center; gap: 10px; justify-content: center;
+        }
+
+        /* JOYSTICK & CONTROL */
+        .control-panel { display: flex; gap: 30px; justify-content: center; align-items: center; padding: 20px; background: #1a1a1a; border-radius: 10px; margin-top: 15px; }
+        .joystick-area { position: relative; width: 150px; height: 150px; background: radial-gradient(circle, #333 0%, #111 100%); border-radius: 50%; border: 2px solid #444; touch-action: none; }
+        .stick { position: absolute; width: 60px; height: 60px; background: radial-gradient(circle at 30% 30%, #555, #222); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); cursor: pointer; border: 1px solid #666; }
+        
+        /* FPS BUTON */
+        #fpsBtn { width: 100%; padding: 20px; font-size: 1.5em; background: linear-gradient(45deg, #c94e4e, #9b59b6); margin-top: 10px; border: 2px solid #fff; color: white; font-weight: bold; cursor: pointer; }
+        #fpsBtn.active { background: #4caf50; }
+
+        /* D-PAD */
+        .d-pad { display: grid; grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px 50px; gap: 5px; }
+        .d-btn { background: #2d2d2d; border: 1px solid #444; color: #ddd; border-radius: 5px; font-size: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; user-select: none; }
+        .d-btn:active { background: #0e639c; transform: scale(0.95); }
+        .d-btn.center { background: #444; border-radius: 50%; font-size: 12px; }
+
+        /* INPUTS & BUTTONS */
+        .input-group, .coord-group { margin-bottom: 12px; }
+        .button-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        label, .coord-group span { display: inline-block; width: 120px; margin-right: 10px; font-weight: bold; }
+        input[type="text"], input[type="number"], select { background-color: #3b3b3c; border: 1px solid #555; color: #d4d4d4; padding: 8px; border-radius: 4px; width: 150px; }
+        .coord-group { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .coord-group input[type="number"] { width: 80px; }
+
+        button { background-color: #0e639c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600; transition: 0.2s; }
+        button:hover { background-color: #1177bb; }
+        button.danger { background-color: #c94e4e; }
+        button.danger:hover { background-color: #e06c6c; }
+        button.warn { background-color: #d7ba7d; color: #1e1e1e; }
+        button.warn:hover { background-color: #eacc8f; }
+        button.info { background-color: #4caf50; }
+        button.info:hover { background-color: #66bb6a; }
+
+        /* STATUS & LOG */
+        #status { font-size: 1.3em; font-weight: bold; }
+        #status.boşta, #status.idle { color: #4CAF50; }
+        #status.meşgul, #status.busy { color: #f44336; }
+        #log { background-color: #1a1a1a; border: 1px solid #333; height: 250px; overflow-y: scroll; padding: 10px; font-family: monospace; font-size: 0.9em; color: #ccc; }
+
+        /* OTHER UI */
+        #tossCategories { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }
+        .tag { display: inline-block; color: white; padding: 4px 10px; border-radius: 15px; margin: 4px; border: 1px solid rgba(255,255,255,0.1); }
+        .tag-mod { background: #c94e4e; }
+        .tag-white { background: #4caf50; }
+        .tag-remove { cursor: pointer; margin-left: 8px; opacity: 0.7; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; vertical-align: middle; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #c94e4e; } 
+        input:checked + .slider:before { transform: translateX(26px); }
+        hr { border: 0; border-top: 1px solid #3e3e42; margin: 20px 0; }
+    </style>
+
+    <script>
+        // --- LANGUAGE DATA ---
+        const translations = {
+            tr: {
+                title: "Bot Yönetim Merkezi",
+                status_h2: "Bot Durumu",
+                curr_status: "Mevcut Durum:",
+                last_msg: "Son Mesaj:",
+                btn_test_kick: "TEST KICK (Sunucudan At)",
+                btn_log_test: "LOG TEST",
+                
+                manual_h2: "🎮 Manuel Kontrol",
+                manual_desc: "Sol taraf: <strong>Yürüme (WASD)</strong> | Sağ taraf: <strong>Kamera (Joystick)</strong>",
+                btn_jump: "ZIPLA",
+                
+                fps_h2: "🎮 Canlı Kontrol (FPS Modu)",
+                fps_desc: "Aşağıdaki butona bas. <strong>Mouse</strong> ile çevir, <strong>WASD</strong> ile yürü, <strong>SPACE</strong> ile zıpla.<br>Moddan çıkmak için <strong>ESC</strong> tuşuna bas.",
+                fps_btn_start: "FPS MODUNA GEÇ (Tıkla)",
+                fps_btn_active: "MOD AKTİF (Çıkmak için ESC)",
+                
+                vis_h2: "Gözlem ve Envanter",
+                vis_view_title: "Canlı Görüş (Viewer)",
+                vis_inv_title: "Canlı Envanter",
+                inv_man_h4: "Envanter Yönetimi (Slot İşlemleri)",
+                inv_desc: "Yukarıdaki panelden Slot numarasına bakıp aşağıya yazın. (Örn: Elindeki 36-44 arasıdır)",
+                lbl_slot: "Slot ID:",
+                ph_slot: "Örn: 9",
+                btn_inv_left: "Sol Tık (Takas)",
+                btn_inv_right: "Sağ Tık (1 Tane)",
+                btn_inv_equip: "ELİME AL",
+                btn_inv_drop: "Yere At (Q)",
+                
+                task_h2: "Görev Yöneticisi",
+                exc_h3: "⛏️ Alan Kazma (Excavator)",
+                lbl_start: "Başlangıç (Köşe 1):",
+                lbl_end: "Bitiş (Köşe 2):",
+                btn_exc_start: "Kazıyı Başlat",
+                btn_exc_goto: "Köşe 1'e Git",
+                btn_exc_stop: "Kazıyı Durdur",
+                
+                pat_h3: "🛡️ Alanı Turla (Patrol)",
+                lbl_p1: "Nokta 1 (X, Z):",
+                lbl_p2: "Nokta 2 (X, Z):",
+                btn_pat_start: "Devriyeyi Başlat",
+                btn_pat_stop: "Devriyeyi Durdur",
+                
+                farm_h3: "🌵 Kaktüs Farmı (Builder)",
+                farm_f1: "1. Çitli Kaktüs Sistemi",
+                farm_f2: "2. İpli Kaktüs Sistemi",
+                farm_f3: "3. Ters İpli Kaktüs Sistemi",
+                lbl_layers: "Kat Sayısı:",
+                ph_layers: "Örn: 10",
+                btn_build: "İnşa Başlat",
+                btn_fast: "⚡ HIZLI BAŞLAT",
+                btn_stop: "Durdur",
+                
+                sec_h2: "Güvenlik Protokolleri",
+                lbl_paranoid: "HERKESDEN KAÇ (Paranoid Mod):",
+                desc_paranoid: "(Açık olduğunda Whitelist harici birini görürse anında kaçar/çıkar.)",
+                mod_h4: "🚫 Yasaklılar (Moderatör/Tehdit)",
+                ph_player: "Oyuncu Adı",
+                btn_add: "EKLE",
+                white_h4: "✅ Güvenli Kişiler (Whitelist)",
+                
+                play_h2: "Oyuncu ve Envanter",
+                fol_h3: "Takip Sistemi",
+                lbl_player: "Oyuncu:",
+                ph_follow: "Kimi takip etsin?",
+                btn_follow: "Takip Et",
+                btn_unfollow: "Bırak",
+                
+                cln_h3: "Envanter Temizliği",
+                cln_desc: "Seçili kategorileri yere atar:",
+                cat_food: "Yiyecek",
+                cat_blocks: "Bloklar",
+                cat_armor: "Zırhlar",
+                cat_tools: "Aletler",
+                cat_other: "Çer-Çöp (Diğer)",
+                btn_toss: "SEÇİLENLERİ AT",
+                
+                sch_h2: "🏗️ Mimar (Schematic Builder)",
+                lbl_file: "Dosya Seç:",
+                opt_select: "Seçiniz...",
+                btn_refresh: "🔄 Yenile",
+                btn_calc: "📋 Malzeme Hesapla",
+                sch_note: ".nbt dosyaları desteklenmez! cubical.xyz ile .schematic yapın.",
+                sch_res_h3: "Gerekli Malzemeler:",
+                sch_res_h4: "Botun Envanterinde Her Seferinde 128 adet Toprağı (Dirt) Hazır Bulundurun:",
+                
+                ch_h4: "📦 1. Sandık Konumu",
+                ch_desc: "Botun malzemeleri alacağı sandık.",
+                btn_ch_curr: "^Koordinatlarına Sandık Koy",
+                
+                bld_h4: "📐 2. İnşaat Sınırları",
+                bld_desc: "Yapı bu alanın <strong>tam ortasına</strong> kurulur.",
+                
+                btn_start_build: "🚀 İNŞAATA BAŞLA",
+                btn_stop_build: "🛑 DURDUR",
+                
+                gen_h2: "Genel Komutlar",
+                ph_chat: "Mesaj gönder...",
+                btn_send: "Gönder",
+                ph_tpa: "TPA Atılacak Oyuncu",
+                btn_tpa: "TPA Gönder",
+                btn_accept: "Kabul Et",
+                
+                log_h2: "Canlı Konsol"
+            },
+            en: {
+                title: "Bot Control Center",
+                status_h2: "Bot Status",
+                curr_status: "Current Status:",
+                last_msg: "Last Message:",
+                btn_test_kick: "TEST KICK (Disconnect)",
+                btn_log_test: "LOG TEST",
+                
+                manual_h2: "🎮 Manual Control",
+                manual_desc: "Left side: <strong>Walk (WASD)</strong> | Right side: <strong>Look (Joystick)</strong>",
+                btn_jump: "JUMP",
+                
+                fps_h2: "🎮 Live Control (FPS Mode)",
+                fps_desc: "Click button below. Use <strong>Mouse</strong> to look, <strong>WASD</strong> to walk, <strong>SPACE</strong> to jump.<br>Press <strong>ESC</strong> to exit mode.",
+                fps_btn_start: "ENTER FPS MODE (Click)",
+                fps_btn_active: "MODE ACTIVE (Press ESC)",
+                
+                vis_h2: "Vision & Inventory",
+                vis_view_title: "Live View",
+                vis_inv_title: "Live Inventory",
+                inv_man_h4: "Inventory Management (Slot Actions)",
+                inv_desc: "Check slot ID from panel above and enter below. (e.g., Hotbar is 36-44)",
+                lbl_slot: "Slot ID:",
+                ph_slot: "Ex: 9",
+                btn_inv_left: "Left Click (Swap)",
+                btn_inv_right: "Right Click (One)",
+                btn_inv_equip: "EQUIP HAND",
+                btn_inv_drop: "Drop Item (Q)",
+                
+                task_h2: "Task Manager",
+                exc_h3: "⛏️ Excavator (Digging)",
+                lbl_start: "Start (Corner 1):",
+                lbl_end: "End (Corner 2):",
+                btn_exc_start: "Start Excavation",
+                btn_exc_goto: "Go to Corner 1",
+                btn_exc_stop: "Stop Excavation",
+                
+                pat_h3: "🛡️ Area Patrol",
+                lbl_p1: "Point 1 (X, Z):",
+                lbl_p2: "Point 2 (X, Z):",
+                btn_pat_start: "Start Patrol",
+                btn_pat_stop: "Stop Patrol",
+                
+                farm_h3: "🌵 Cactus Farm (Builder)",
+                farm_f1: "1. Fence Cactus System",
+                farm_f2: "2. String (Ipli) Cactus System",
+                farm_f3: "3. Reverse String Cactus System",
+                lbl_layers: "Layers:",
+                ph_layers: "Ex: 10",
+                btn_build: "Start Build",
+                btn_fast: "⚡ FAST MODE",
+                btn_stop: "Stop",
+                
+                sec_h2: "Security Protocols",
+                lbl_paranoid: "RUN FROM EVERYONE (Paranoid):",
+                desc_paranoid: "(When active, bot quits/runs if it sees ANYONE not on Whitelist.)",
+                mod_h4: "🚫 Banned/Threats (Moderators)",
+                ph_player: "Player Name",
+                btn_add: "ADD",
+                white_h4: "✅ Safe List (Whitelist)",
+                
+                play_h2: "Player & Inventory",
+                fol_h3: "Follow System",
+                lbl_player: "Player:",
+                ph_follow: "Who to follow?",
+                btn_follow: "Follow",
+                btn_unfollow: "Stop",
+                
+                cln_h3: "Inventory Cleaner",
+                cln_desc: "Drops selected categories:",
+                cat_food: "Food",
+                cat_blocks: "Blocks",
+                cat_armor: "Armor",
+                cat_tools: "Tools",
+                cat_other: "Junk (Other)",
+                btn_toss: "TOSS SELECTED",
+                
+                sch_h2: "🏗️ Architect (Schematic Builder)",
+                lbl_file: "Select File:",
+                opt_select: "Select...",
+                btn_refresh: "🔄 Refresh",
+                btn_calc: "📋 Calc Materials",
+                sch_note: ".nbt files not supported! Convert to .schematic via cubical.xyz",
+                sch_res_h3: "Required Materials:",
+                sch_res_h4: "Keep at least 128 Dirt in inventory for scaffolding:",
+                
+                ch_h4: "📦 1. Chest Location",
+                ch_desc: "Chest where bot takes materials from.",
+                btn_ch_curr: "Set Chest to Here",
+                
+                bld_h4: "📐 2. Build Area",
+                bld_desc: "Structure is built in the <strong>exact center</strong>.",
+                
+                btn_start_build: "🚀 START BUILDING",
+                btn_stop_build: "🛑 STOP",
+                
+                gen_h2: "General Commands",
+                ph_chat: "Send message...",
+                btn_send: "Send",
+                ph_tpa: "TPA Username",
+                btn_tpa: "Send TPA",
+                btn_accept: "Accept TPA",
+                
+                log_h2: "Live Console"
+            }
+        };
+
+        let currentLang = localStorage.getItem('botLang') || 'tr';
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('botLang', lang);
+            
+            // Update plain text elements
+            document.querySelectorAll('[data-lang]').forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if(translations[lang][key]) {
+                    el.innerHTML = translations[lang][key];
+                }
+            });
+
+            // Update placeholders
+            document.querySelectorAll('[data-lang-ph]').forEach(el => {
+                const key = el.getAttribute('data-lang-ph');
+                if(translations[lang][key]) {
+                    el.placeholder = translations[lang][key];
+                }
+            });
+            
+            document.getElementById('langBtn').textContent = lang === 'tr' ? "🇺🇸 English" : "🇹🇷 Türkçe";
+            
+            // Update title
+            document.title = translations[lang].title;
+        }
+
+        function toggleLanguage() {
+            setLanguage(currentLang === 'tr' ? 'en' : 'tr');
+        }
+
+        // --- CONSOLE REDIRECT ---
+        (function () {
+            let logElement; 
+            const originalLog = console.log;
+            const originalWarn = console.warn;
+            const originalError = console.error;
+
+            function appendLog(message, type = 'log') {
+                if (!logElement) logElement = document.getElementById('log');
+                if (!logElement) return;
+                
+                const time = new Date().toLocaleTimeString();
+                let color = '#ccc';
+                if(type === 'warn') color = '#f0ad4e';
+                if(type === 'error') color = '#e06c6c';
+
+                const msgText = (typeof message === 'object') ? JSON.stringify(message) : message;
+                const span = document.createElement('div');
+                span.style.color = color;
+                span.style.borderBottom = '1px solid #2a2a2a';
+                span.textContent = `[${time}] [${type.toUpperCase()}] ${msgText}`;
+                logElement.appendChild(span);
+                logElement.scrollTop = logElement.scrollHeight; 
+            }
+
+            console.log = function (message) { originalLog.apply(console, arguments); appendLog(message, 'log'); };
+            console.warn = function (message) { originalWarn.apply(console, arguments); appendLog(message, 'warn'); };
+            console.error = function (message) { originalError.apply(console, arguments); appendLog(message, 'error'); };
+        })();
+
+        // --- API CALLS ---
+        async function sendCommand(endpoint) {
+            console.log(`CMD: ${endpoint}`);
+            try {
+                const response = await fetch(endpoint);
+                const text = await response.text();
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${text}`);
+                console.log(`Server: ${text}`);
+            } catch (error) { console.error(`Err: ${error.message}`); }
+            setTimeout(updateStatus, 500);
+        }
+
+        async function updateStatus() {
+            const statusEl = document.getElementById('status');
+            const messageEl = document.getElementById('statusMessage');
+            try {
+                const res = await fetch(`/api/status`);
+                const data = await res.json();
+                
+                // Status translation logic
+                let displayStatus = data.status;
+                if(currentLang === 'en') {
+                    if(displayStatus === 'Boşta') displayStatus = 'Idle';
+                    if(displayStatus === 'Meşgul') displayStatus = 'Busy';
+                    if(displayStatus === 'Başlatılıyor') displayStatus = 'Starting';
+                }
+                
+                statusEl.textContent = displayStatus;
+                messageEl.textContent = data.message;
+                statusEl.className = displayStatus.toLowerCase().replace(/\s/g, '');
+            } catch (e) {
+                statusEl.textContent = currentLang === 'tr' ? 'Bağlantı Yok' : 'No Connection';
+                statusEl.className = '';
+            }
+        }
+
+        async function loadSchematicList() {
+            const select = document.getElementById('schematicSelect');
+            try {
+                const res = await fetch('/api/schematics/list');
+                const files = await res.json();
+                select.innerHTML = `<option value="">${translations[currentLang].opt_select}</option>`;
+                files.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f; opt.textContent = f;
+                    select.appendChild(opt);
+                });
+            } catch(e) {}
+        }
+
+        function clearMaterialList() { document.getElementById('materialResult').style.display = 'none'; }
+
+        function useCurrentPosForChest() {
+            const msg = currentLang === 'tr' 
+                ? "F3'e basıp sandığa bakın. 'Target Block' kısmındaki koordinatları yazın. Y seviyesi bot ile aynı olmalı!" 
+                : "Press F3, look at chest. Enter 'Target Block' coordinates. Y level must match the bot!";
+            alert(msg);
+        }
+
+        async function analyzeSchematicDetail() {
+            const file = document.getElementById('schematicSelect').value;
+            if(!file) { alert(currentLang === 'tr' ? "Dosya seç!" : "Select file!"); return; }
+
+            const btn = document.querySelector('#btnCalc');
+            const originalText = btn.textContent;
+            btn.textContent = "Loading...";
+            
+            try {
+                const res = await fetch(`/api/schematics/analyze?fileName=${file}`);
+                const data = await res.json();
+                const listEl = document.getElementById('matListUl');
+                listEl.innerHTML = '';
+                
+                const sizeInfo = document.createElement('li');
+                sizeInfo.style.color = '#fff'; sizeInfo.style.fontWeight = 'bold';
+                sizeInfo.textContent = `📏 Size: ${data.size.x} (W) x ${data.size.y} (H) x ${data.size.z} (D)`;
+                listEl.appendChild(sizeInfo);
+                
+                let totalBlocks = 0;
+                for (const [name, count] of Object.entries(data.materials)) {
+                    const li = document.createElement('li');
+                    const stacks = Math.floor(count / 64);
+                    const remainder = count % 64;
+                    let text = `🔹 ${name}: ${count}`;
+                    if (stacks > 0) text += ` (${stacks} Stack + ${remainder})`;
+                    li.textContent = text; li.style.color = '#ccc';
+                    listEl.appendChild(li);
+                    totalBlocks += count;
+                }
+                const totalLi = document.createElement('li');
+                totalLi.style.borderTop = "1px solid #444"; totalLi.style.marginTop = "5px"; totalLi.style.paddingTop = "5px";
+                totalLi.textContent = `Total: ${totalBlocks}`;
+                listEl.appendChild(totalLi);
+
+                document.getElementById('materialResult').style.display = 'block';
+                btn.textContent = originalText;
+            } catch (e) {
+                alert("Error: " + e);
+                btn.textContent = "Error!";
+            }
+        }
+
+        function startSchematicBuild() {
+            const file = document.getElementById('schematicSelect').value;
+            const cx = document.getElementById('chestX').value;
+            const cy = document.getElementById('chestY').value;
+            const cz = document.getElementById('chestZ').value;
+            const minX = document.getElementById('buildX1').value;
+            const minZ = document.getElementById('buildZ1').value;
+            const maxX = document.getElementById('buildX2').value;
+            const maxZ = document.getElementById('buildZ2').value;
+
+            if(!file || !cx || !minX) { console.error(currentLang === 'tr' ? "Alanları doldurun." : "Fill all fields."); return; }
+            const url = `/api/schematics/start?fileName=${file}&chestX=${cx}&chestY=${cy}&chestZ=${cz}&minX=${minX}&minZ=${minZ}&maxX=${maxX}&maxZ=${maxZ}`;
+            sendCommand(url);
+        }
+
+        // --- JOYSTICK ---
+        let joystickInterval = null;
+        const joystickData = { x: 0, y: 0 };
+        function initJoystick() {
+            const area = document.getElementById('joystickArea');
+            const stick = document.getElementById('joystickStick');
+            const maxRadius = 45; 
+            let isDragging = false;
+
+            function handleMove(clientX, clientY) {
+                const rect = area.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                let x = clientX - centerX;
+                let y = clientY - centerY;
+                const distance = Math.sqrt(x * x + y * y);
+                if (distance > maxRadius) {
+                    const angle = Math.atan2(y, x);
+                    x = Math.cos(angle) * maxRadius;
+                    y = Math.sin(angle) * maxRadius;
+                }
+                stick.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+                joystickData.x = x / maxRadius; joystickData.y = y / maxRadius;
+            }
+
+            function startDrag(e) {
+                isDragging = true; stick.style.transition = 'none';
+                if (e.type === 'touchstart') handleMove(e.touches[0].clientX, e.touches[0].clientY);
+                if (!joystickInterval) joystickInterval = setInterval(sendLookUpdate, 50);
+            }
+            function stopDrag() {
+                isDragging = false; stick.style.transition = 'transform 0.2s ease-out';
+                stick.style.transform = `translate(-50%, -50%)`;
+                joystickData.x = 0; joystickData.y = 0;
+                if (joystickInterval) { clearInterval(joystickInterval); joystickInterval = null; }
+            }
+            stick.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', (e) => { if(isDragging) handleMove(e.clientX, e.clientY); });
+            document.addEventListener('mouseup', stopDrag);
+            stick.addEventListener('touchstart', startDrag);
+            document.addEventListener('touchmove', (e) => { if(isDragging) { e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); }});
+            document.addEventListener('touchend', stopDrag);
+        }
+
+        async function sendLookUpdate() {
+            const sensitivity = -0.15; 
+            const yawDelta = joystickData.x * sensitivity;
+            const pitchDelta = joystickData.y * sensitivity;
+            if (Math.abs(yawDelta) < 0.001 && Math.abs(pitchDelta) < 0.001) return;
+            try { await fetch(`/api/control/look?yaw=${yawDelta}&pitch=${pitchDelta}`); } catch (e) { }
+        }
+        function moveBot(direction) { fetch(`/api/control/move?dir=${direction}&time=250`).catch(e => console.error(e)); }
+
+        // --- INVENTORY ---
+        function sendInvAction(action) {
+            const slot = document.getElementById('invSlotId').value;
+            if (slot === '') { console.error("Slot ID?"); return; }
+            sendCommand(`/api/inv-action?slot=${slot}&action=${action}`);
+        }
+        function equipItem() {
+            const slot = document.getElementById('invSlotId').value;
+            if (slot === '') { console.error("Slot ID?"); return; }
+            sendCommand(`/api/inv-equip?slot=${slot}`);
+        }
+
+        // --- TASKS ---
+        function startExcavate() {
+            const x1 = document.getElementById('x1').value; const y1 = document.getElementById('y1').value; const z1 = document.getElementById('z1').value;
+            const x2 = document.getElementById('x2').value; const y2 = document.getElementById('y2').value; const z2 = document.getElementById('z2').value;
+            if (!x1 || !y1 || !z1 || !x2 || !y2 || !z2) { console.error("Coords?"); return; }
+            const params = new URLSearchParams({ x1, y1, z1, x2, y2, z2 });
+            sendCommand(`/api/excavate?${params.toString()}`);
+        }
+        function stopExcavate() { sendCommand('/api/stop-excavate'); }
+        function goToLocation() { 
+            const x1 = document.getElementById('x1').value; const y1 = document.getElementById('y1').value; const z1 = document.getElementById('z1').value; 
+            if (!x1) return; sendCommand(`/api/goto?x=${x1}&y=${y1}&z=${z1}`); 
+        }
+
+        function startPatrol() {
+            const x1 = document.getElementById('px1').value; const z1 = document.getElementById('pz1').value;
+            const x2 = document.getElementById('px2').value; const z2 = document.getElementById('pz2').value;
+            if (!x1 || !z1) return; sendCommand(`/api/patrol?x1=${x1}&z1=${z1}&x2=${x2}&z2=${z2}`);
+        }
+        function stopPatrol() { sendCommand('/api/stop-patrol'); }
+
+        // --- FARMER ---
+        function startFenceCactus() { 
+            const amount = document.getElementById('cactusAmount').value; 
+            if (!amount) return; sendCommand(`/api/fence-cactus?amount=${amount}`); 
+        }
+        function startIpliCactus() { 
+            const amount = document.getElementById('ipliCactusAmount').value; 
+            if (!amount) return; sendCommand(`/api/ipli-cactus?amount=${amount}`); 
+        }
+        function startIpliTersCactus() { 
+            const amount = document.getElementById('ipliTersCactusAmount').value; 
+            if (!amount) return; sendCommand(`/api/ipli-ters-cactus?amount=${amount}`); 
+        }
+        function stopFenceCactus() { sendCommand('/api/stop-fence-cactus'); }
+        function stopIpliCactus() { sendCommand('/api/stop-ipli-cactus'); } 
+		function stopipliTersCactus() { sendCommand('/api/stop-ipli-ters-cactus'); } 
+
+        // HIZLI MOD
+        function startHizliFenceCactus() { const a = document.getElementById('cactusAmount').value; if(!a) return; sendCommand(`/api/hizli-fence-cactus?amount=${a}`); }
+        function startHizliIpliCactus() { const a = document.getElementById('ipliCactusAmount').value; if(!a) return; sendCommand(`/api/hizli-ipli-cactus?amount=${a}`); }
+        function startHizliIpliTersCactus() { const a = document.getElementById('ipliTersCactusAmount').value; if(!a) return; sendCommand(`/api/hizli-ipli-ters-cactus?amount=${a}`); }
+
+        // --- FOLLOW & TOSS ---
+        function startFollow() { const u = document.getElementById('followUser').value; if (!u) return; sendCommand(`/api/follow?username=${encodeURIComponent(u)}`); }
+        function stopFollow() { sendCommand('/api/stop-follow'); }
+        function tossInventory() {
+            const cats = [];
+            if (document.getElementById('toss-food').checked) cats.push('food');
+            if (document.getElementById('toss-blocks').checked) cats.push('blocks');
+            if (document.getElementById('toss-armor').checked) cats.push('armor');
+            if (document.getElementById('toss-tools').checked) cats.push('tools');
+            if (document.getElementById('toss-other').checked) cats.push('other');
+            if (cats.length === 0) return;
+            sendCommand(`/api/toss?categories=${cats.join(',')}`);
+        }
+
+        function sendChat(id, prefix = '') { 
+            const m = document.getElementById(id).value; 
+            if (m) { sendCommand(`/api/chat?message=${encodeURIComponent(prefix + m)}`); document.getElementById(id).value = ''; }
+        }
+        function testKick() { sendCommand('/api/test-kick'); }
+        function testLog() { console.log("Test Info"); console.warn("Test Warn"); console.error("Test Error"); }
+
+        // --- SECURITY LISTS ---
+        async function updateLists() {
+            try {
+                const resMod = await fetch('/api/mod-list'); renderList('modList', await resMod.json(), 'mod');
+                const resWhite = await fetch('/api/whitelist-list'); renderList('whiteList', await resWhite.json(), 'white');
+            } catch (e) { }
+        }
+        function renderList(elementId, list, type) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            if (!list || list.length === 0) { container.innerHTML = '<span style="color: #555; font-style:italic;">Empty...</span>'; return; }
+            list.forEach(name => {
+                const tag = document.createElement('span');
+                tag.className = `tag tag-${type}`;
+                tag.innerHTML = `${name} <span class="tag-remove" onclick="removeUser('${name}', '${type}')">x</span>`;
+                container.appendChild(tag);
+            });
+        }
+        async function addUser(type) {
+            const inputId = type === 'mod' ? 'modNameInput' : 'whiteNameInput';
+            const name = document.getElementById(inputId).value;
+            if(!name) return;
+            await fetch(`/api/${type === 'mod' ? 'mod' : 'whitelist'}-add?username=${encodeURIComponent(name)}`);
+            document.getElementById(inputId).value = '';
+            updateLists();
+        }
+        async function removeUser(name, type) {
+            await fetch(`/api/${type === 'mod' ? 'mod' : 'whitelist'}-remove?username=${encodeURIComponent(name)}`);
+            updateLists();
+        }
+        function toggleParanoid() {
+            const isActive = document.getElementById('paranoidToggle').checked;
+            sendCommand(`/api/toggle-paranoid?active=${isActive}`);
+        }
+
+        // --- FRAMES ---
+        async function initFrames() {
+            try {
+                const res = await fetch('/api/ports');
+                const ports = await res.json();
+                const host = window.location.hostname;
+                document.getElementById('viewerFrame').src = `http://${host}:${ports.viewer}`;
+                document.getElementById('inventoryFrame').src = `http://${host}:${ports.inventory}`;
+            } catch (e) {}
+        }
+
+        // --- FPS MODE ---
+        let isPointerLocked = false;
+        let moveInterval = null;
+        const keysPressed = {};
+        function initFPSControl() {
+            const btn = document.getElementById('fpsBtn');
+            if(!btn) return;
+            btn.addEventListener('click', () => { document.body.requestPointerLock(); });
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === document.body) {
+                    isPointerLocked = true;
+                    btn.textContent = translations[currentLang].fps_btn_active;
+                    btn.classList.add('active');
+                    startMovementLoop();
+                } else {
+                    isPointerLocked = false;
+                    btn.textContent = translations[currentLang].fps_btn_start;
+                    btn.classList.remove('active');
+                    stopMovementLoop();
+                }
+            });
+            document.addEventListener('mousedown', (e) => {
+                if (!isPointerLocked) return;
+                let clickType = e.button === 0 ? 'left' : (e.button === 2 ? 'right' : null);
+                if (clickType) fetch(`/api/control/click?type=${clickType}`).catch(()=>{});
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (!isPointerLocked) return;
+                const sensitivity = -0.003; 
+                if (Math.abs(e.movementX) > 0 || Math.abs(e.movementY) > 0) {
+                    fetch(`/api/control/look?yaw=${e.movementX * sensitivity}&pitch=${e.movementY * sensitivity}`).catch(()=>{});
+                }
+            });
+            document.addEventListener('keydown', (e) => {
+                if (!isPointerLocked) return;
+                keysPressed[e.code] = true;
+                if (e.code.startsWith('Digit') && e.code !== 'Digit0') {
+                    fetch(`/api/control/select?index=${parseInt(e.key) - 1}`).catch(()=>{});
+                }
+            });
+            document.addEventListener('keyup', (e) => { if (!isPointerLocked) return; keysPressed[e.code] = false; });
+        }
+        function startMovementLoop() {
+            if (moveInterval) clearInterval(moveInterval);
+            moveInterval = setInterval(() => {
+                if (!isPointerLocked) return;
+                if (keysPressed['KeyW']) fetch(`/api/control/move?dir=forward&time=150`).catch(()=>{});
+                if (keysPressed['KeyS']) fetch(`/api/control/move?dir=back&time=150`).catch(()=>{});
+                if (keysPressed['KeyA']) fetch(`/api/control/move?dir=left&time=150`).catch(()=>{});
+                if (keysPressed['KeyD']) fetch(`/api/control/move?dir=right&time=150`).catch(()=>{});
+                if (keysPressed['Space']) fetch(`/api/control/move?dir=jump&time=150`).catch(()=>{});
+            }, 100); 
+        }
+        function stopMovementLoop() {
+            if (moveInterval) { clearInterval(moveInterval); moveInterval = null; }
+            for (let key in keysPressed) delete keysPressed[key];
+        }
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("Panel loaded.");
+            setLanguage(currentLang); // Set initial language
+            initFrames();
+            updateStatus();
+            updateLists();
+            initJoystick(); 
+            initFPSControl(); 
+            loadSchematicList();
+            setInterval(updateStatus, 2000);
+        });
+    </script>
+</head>
+<body>
+    <button id="langBtn" onclick="toggleLanguage()">🇺🇸 English</button>
+
+    <h1 data-lang="title">Bot Yönetim Merkezi</h1>
+
+    <div class="container">
+        <h2 data-lang="status_h2">Bot Durumu</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <p><strong data-lang="curr_status">Mevcut Durum:</strong> <span id="status">Yükleniyor...</span></p>
+                <p><strong data-lang="last_msg">Son Mesaj:</strong> <span id="statusMessage">-</span></p>
+            </div>
+            <div>
+                <button onclick="testKick()" class="warn" data-lang="btn_test_kick">TEST KICK (Sunucudan At)</button>
+                <button onclick="testLog()" style="background-color: #9b59b6;" data-lang="btn_log_test">LOG TEST</button>
+            </div>
+        </div>
+    </div>
+	
+    <div class="container">
+        <h2 data-lang="manual_h2">🎮 Manuel Kontrol</h2>
+        <p style="text-align: center; color: #aaa; font-size: 0.9em;" data-lang="manual_desc">
+            Sol taraf: <strong>Yürüme (WASD)</strong> | Sağ taraf: <strong>Kamera (Joystick)</strong>
+        </p>
+        
+        <div class="control-panel">
+            <div class="d-pad">
+                <div></div>
+                <button class="d-btn" onmousedown="moveBot('forward')" ontouchstart="moveBot('forward')">W</button>
+                <div></div>
+                <button class="d-btn" onmousedown="moveBot('left')" ontouchstart="moveBot('left')">A</button>
+                <button class="d-btn center" onclick="moveBot('jump')" data-lang="btn_jump">ZIPLA</button>
+                <button class="d-btn" onmousedown="moveBot('right')" ontouchstart="moveBot('right')">D</button>
+                <div></div>
+                <button class="d-btn" onmousedown="moveBot('back')" ontouchstart="moveBot('back')">S</button>
+                <div></div>
+            </div>
+            <div style="width: 2px; height: 100px; background: #333;"></div>
+            <div class="joystick-area" id="joystickArea">
+                <div class="stick" id="joystickStick"></div>
+            </div>
+        </div>
+    </div>
+		
+	<div class="container" style="border-color: #9b59b6;">
+        <h2 style="color: #9b59b6;" data-lang="fps_h2">🎮 Canlı Kontrol (FPS Modu)</h2>
+        <p style="text-align: center; color: #aaa; font-size: 0.9em;" data-lang="fps_desc">
+            Aşağıdaki butona bas. <strong>Mouse</strong> ile çevir, <strong>WASD</strong> ile yürü, <strong>SPACE</strong> ile zıpla.
+            <br>Moddan çıkmak için <strong>ESC</strong> tuşuna bas.
+        </p>
+        <button id="fpsBtn" data-lang="fps_btn_start">FPS MODUNA GEÇ (Tıkla)</button>
+    </div>
+
+    <div class="container">
+        <h2 data-lang="vis_h2">Gözlem ve Envanter</h2>
+        
+        <div class="visual-container">
+            <div class="frame-box">
+                <div class="frame-title" data-lang="vis_view_title">Canlı Görüş (Viewer)</div>
+                <iframe id="viewerFrame"></iframe>
+            </div>
+
+            <div class="frame-box">
+                <div class="frame-title" data-lang="vis_inv_title">Canlı Envanter</div>
+                <iframe id="inventoryFrame"></iframe>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px; text-align: center;">
+            <h4 style="color: #9cdcfe; margin: 0 0 10px 0;" data-lang="inv_man_h4">Envanter Yönetimi (Slot İşlemleri)</h4>
+            <p style="font-size: 0.8em; color: #aaa; margin-top: 0;" data-lang="inv_desc">
+                Yukarıdaki panelden Slot numarasına bakıp aşağıya yazın. (Örn: Elindeki 36-44 arasıdır)
+            </p>
+            
+        <div class="inv-controls">
+                <label data-lang="lbl_slot">Slot ID:</label>
+                <input type="number" id="invSlotId" data-lang-ph="ph_slot" placeholder="Örn: 9" style="width: 70px; text-align: center;">
+                
+                <button onclick="sendInvAction('left')" class="info" style="width: 110px;" data-lang="btn_inv_left">Sol Tık (Takas)</button>
+                <button onclick="sendInvAction('right')" class="warn" style="width: 110px;" data-lang="btn_inv_right">Sağ Tık (1 Tane)</button>
+                <button onclick="equipItem()" class="info" style="background-color: #9b59b6; width: 110px;" data-lang="btn_inv_equip">ELİME AL</button>
+                <button onclick="sendInvAction('drop')" class="danger" style="width: 110px;" data-lang="btn_inv_drop">Yere At (Q)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 data-lang="task_h2">Görev Yöneticisi</h2>
+        
+        <h3 data-lang="exc_h3">⛏️ Alan Kazma (Excavator)</h3>
+        <div style="background: #2d2d2d; padding: 10px; border-radius: 5px;">
+            <div class="coord-group">
+                <span data-lang="lbl_start">Başlangıç (Köşe 1):</span> 
+                <input type="number" id="x1" placeholder="X">
+                <input type="number" id="y1" placeholder="Y">
+                <input type="number" id="z1" placeholder="Z">
+            </div>
+            <div class="coord-group">
+                <span data-lang="lbl_end">Bitiş (Köşe 2):</span> 
+                <input type="number" id="x2" placeholder="X">
+                <input type="number" id="y2" placeholder="Y">
+                <input type="number" id="z2" placeholder="Z">
+            </div>
+            <div class="button-group">
+                <button onclick="startExcavate()" data-lang="btn_exc_start">Kazıyı Başlat</button>
+                <button onclick="goToLocation()" class="warn" data-lang="btn_exc_goto">Köşe 1'e Git</button>
+                <button onclick="stopExcavate()" class="danger" data-lang="btn_exc_stop">Kazıyı Durdur</button>
+            </div>
+        </div>
+
+        <hr>
+        
+        <h3 data-lang="pat_h3">🛡️ Alanı Turla (Patrol)</h3>
+        <div style="background: #2d2d2d; padding: 10px; border-radius: 5px;">
+            <div class="coord-group">
+                <span data-lang="lbl_p1">Nokta 1 (X, Z):</span> 
+                <input type="number" id="px1" placeholder="X1">
+                <input type="number" id="pz1" placeholder="Z1">
+            </div>
+            <div class="coord-group">
+                <span data-lang="lbl_p2">Nokta 2 (X, Z):</span> 
+                <input type="number" id="px2" placeholder="X2">
+                <input type="number" id="pz2" placeholder="Z2">
+            </div>
+            <div class="button-group">
+                <button onclick="startPatrol()" data-lang="btn_pat_start">Devriyeyi Başlat</button>
+                <button onclick="stopPatrol()" class="danger" data-lang="btn_pat_stop">Devriyeyi Durdur</button>
+            </div>
+        </div>
+
+        <hr>
+
+        <h3 data-lang="farm_h3">🌵 Kaktüs Farmı (Builder)</h3>
+        
+        <h4 style="color: #608b4e; border-bottom: 1px solid #444;" data-lang="farm_f1">1. Çitli Kaktüs Sistemi</h4>
+        <div class="input-group">
+            <label for="cactusAmount" data-lang="lbl_layers">Kat Sayısı:</label>
+            <input type="number" id="cactusAmount" data-lang-ph="ph_layers" placeholder="Örn: 10">
+            <div class="button-group" style="margin-top: 5px;">
+                <button onclick="startFenceCactus()" data-lang="btn_build">İnşa Başlat</button>
+                <button onclick="startHizliFenceCactus()" style="background-color: #8e44ad;" data-lang="btn_fast">⚡ HIZLI BAŞLAT</button>
+                <button onclick="stopFenceCactus()" class="danger" data-lang="btn_stop">Durdur</button>
+            </div>
+        </div>
+
+        <h4 style="color: #608b4e; border-bottom: 1px solid #444;" data-lang="farm_f2">2. İpli Kaktüs Sistemi</h4>
+        <div class="input-group">
+            <label for="ipliCactusAmount" data-lang="lbl_layers">Kat Sayısı:</label>
+            <input type="number" id="ipliCactusAmount" data-lang-ph="ph_layers" placeholder="Örn: 10">
+            <div class="button-group" style="margin-top: 5px;">
+                <button onclick="startIpliCactus()" data-lang="btn_build">İnşa Başlat</button>
+                <button onclick="startHizliIpliCactus()" style="background-color: #8e44ad;" data-lang="btn_fast">⚡ HIZLI BAŞLAT</button>
+                <button onclick="stopIpliCactus()" class="danger" data-lang="btn_stop">Durdur</button>
+            </div>
+        </div>
+
+        <h4 style="color: #608b4e; border-bottom: 1px solid #444;" data-lang="farm_f3">3. Ters İpli Kaktüs Sistemi</h4>
+        <div class="input-group">
+            <label for="ipliTersCactusAmount" data-lang="lbl_layers">Kat Sayısı:</label>
+            <input type="number" id="ipliTersCactusAmount" data-lang-ph="ph_layers" placeholder="Örn: 10">
+            <div class="button-group" style="margin-top: 5px;">
+                <button onclick="startIpliTersCactus()" data-lang="btn_build">İnşa Başlat</button>
+                <button onclick="startHizliIpliTersCactus()" style="background-color: #8e44ad;" data-lang="btn_fast">⚡ HIZLI BAŞLAT</button>
+                <button onclick="stopIpliCactus()" class="danger" data-lang="btn_stop">Durdur</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 style="color: #e06c6c;" data-lang="sec_h2">Güvenlik Protokolleri</h2>
+        
+        <div style="display: flex; align-items: center; margin-bottom: 20px; background: #2d2d2d; padding: 15px; border-radius: 5px; border-left: 5px solid #c94e4e;">
+            <span style="margin-right: 15px; font-weight: bold; color: #c94e4e; font-size: 1.1em;" data-lang="lbl_paranoid">HERKESDEN KAÇ (Paranoid Mod):</span>
+            <label class="switch">
+                <input type="checkbox" id="paranoidToggle" onchange="toggleParanoid()">
+                <span class="slider"></span>
+            </label>
+            <span style="margin-left: 15px; font-size: 0.9em; color: #aaa;" data-lang="desc_paranoid">
+                (Açık olduğunda Whitelist harici birini görürse anında kaçar/çıkar.)
+            </span>
+        </div>
+
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 300px;">
+                <h4 style="margin-top: 0; color: #c94e4e;" data-lang="mod_h4">🚫 Yasaklılar (Moderatör/Tehdit)</h4>
+                <div class="input-group">
+                    <input type="text" id="modNameInput" data-lang-ph="ph_player" placeholder="Oyuncu Adı" style="width: 60%;">
+                    <button onclick="addUser('mod')" class="danger" data-lang="btn_add">EKLE</button>
+                </div>
+                <div id="modList" style="background: #1e1e1e; padding: 10px; border-radius: 4px; min-height: 60px; border: 1px solid #333;"></div>
+            </div>
+            
+            <div style="flex: 1; min-width: 300px;">
+                <h4 style="margin-top: 0; color: #4caf50;" data-lang="white_h4">✅ Güvenli Kişiler (Whitelist)</h4>
+                <div class="input-group">
+                    <input type="text" id="whiteNameInput" data-lang-ph="ph_player" placeholder="Oyuncu Adı" style="width: 60%;">
+                    <button onclick="addUser('white')" class="info" data-lang="btn_add">EKLE</button>
+                </div>
+                <div id="whiteList" style="background: #1e1e1e; padding: 10px; border-radius: 4px; min-height: 60px; border: 1px solid #333;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 data-lang="play_h2">Oyuncu ve Envanter</h2>
+        
+        <h3 data-lang="fol_h3">Takip Sistemi</h3>
+        <div class="input-group">
+            <label data-lang="lbl_player">Oyuncu:</label> 
+            <input type="text" id="followUser" data-lang-ph="ph_follow" placeholder="Kimi takip etsin?">
+            <button onclick="startFollow()" data-lang="btn_follow">Takip Et</button> 
+            <button onclick="stopFollow()" class="warn" data-lang="btn_unfollow">Bırak</button>
+        </div>
+        
+        <hr>
+
+        <h3 data-lang="cln_h3">Envanter Temizliği</h3>
+        <p style="font-size: 0.9em; color: #aaa;" data-lang="cln_desc">Seçili kategorileri yere atar:</p>
+        <div id="tossCategories">
+            <div><input type="checkbox" id="toss-food" value="food"><label for="toss-food" data-lang="cat_food">Yiyecek</label></div>
+            <div><input type="checkbox" id="toss-blocks" value="blocks"><label for="toss-blocks" data-lang="cat_blocks">Bloklar</label></div>
+            <div><input type="checkbox" id="toss-armor" value="armor"><label for="toss-armor" data-lang="cat_armor">Zırhlar</label></div>
+            <div><input type="checkbox" id="toss-tools" value="tools"><label for="toss-tools" data-lang="cat_tools">Aletler</label></div>
+            <div><input type="checkbox" id="toss-other" value="other"><label for="toss-other" data-lang="cat_other">Çer-Çöp (Diğer)</label></div>
+        </div>
+        <button onclick="tossInventory()" class="danger" style="margin-top: 15px; width: 100%;" data-lang="btn_toss">SEÇİLENLERİ AT</button>
+    </div>
+
+   <div class="container" style="border-color: #eacc8f;">
+        <h2 style="color: #eacc8f;" data-lang="sch_h2">🏗️ Mimar (Schematic Builder)</h2>
+        
+        <div style="background: #2d2d2d; padding: 15px; border-radius: 5px;">
+            <div class="input-group">
+                <label data-lang="lbl_file">Dosya Seç:</label>
+                <select id="schematicSelect" onchange="clearMaterialList()"></select>
+                <button onclick="loadSchematicList()" class="info" data-lang="btn_refresh">🔄 Yenile</button>
+                <button onclick="analyzeSchematicDetail()" id="btnCalc" class="warn" style="background: #e67e22;" data-lang="btn_calc">📋 Malzeme Hesapla</button>
+				<p data-lang="sch_note">.nbt dosyaları <a href="https://cubical.xyz/" style="color:red;" target="_blank" rel="noopener noreferrer">https://cubical.xyz/</a> File-Export → SCHEMATIC FILE olarak dönüştürmeniz gerekir. Örnek Dosya Adı ev.schematic şeklinde olması gerekir. .schem dosyaları desteklenmez!!! </p>
+            </div>
+
+            <div id="materialResult" style="display:none; background: #1e1e1e; padding: 10px; margin: 10px 0; border: 1px solid #555; max-height: 200px; overflow-y: auto;">
+                <h3 style="margin-top: 0; color: #eacc8f; border-bottom: 1px solid #444;" data-lang="sch_res_h3">Gerekli Malzemeler:</h4>
+				<h4 style="margin-top: 0; color: #eacc8f; border-bottom: 1px solid #444;" data-lang="sch_res_h4">Botun Envanterinde Her Seferinde 128 adet Toprağı (Dirt) Hazır Bulundurun:</h4>
+                <ul id="matListUl" style="list-style: none; padding: 0; font-size: 0.9em;"></ul>
+            </div>
+
+            <hr>
+
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h4 style="margin-top:0;" data-lang="ch_h4">📦 1. Sandık Konumu</h4>
+                    <p style="font-size: 0.8em; color: #888; margin-top: -5px;" data-lang="ch_desc">Botun malzemeleri alacağı sandık.</p>
+                    <div class="coord-group">
+                        <input type="number" id="chestX" placeholder="X">
+                        <input type="number" id="chestY" placeholder="Y">
+                        <input type="number" id="chestZ" placeholder="Z">
+                    </div>
+                    <div class="coord-group" style="margin-top:5px;">
+                         <button onclick="useCurrentPosForChest()" class="info" style="font-size:0.8em; padding: 5px;" data-lang="btn_ch_curr">^Koordinatlarına Sandık Koy</button>
+                    </div>
+                </div>
+
+                <div style="flex: 1; min-width: 250px;">
+                    <h4 style="margin-top:0;" data-lang="bld_h4">📐 2. İnşaat Sınırları</h4>
+                    <p style="font-size: 0.8em; color: #888; margin-top: -5px;" data-lang="bld_desc">Yapı bu alanın <strong>tam ortasına</strong> kurulur.</p>
+                    <div class="coord-group">
+                        <span style="width: 50px;">P1:</span>
+                        <input type="number" id="buildX1" placeholder="X">
+                        <input type="number" id="buildZ1" placeholder="Z">
+                    </div>
+                    <div class="coord-group">
+                        <span style="width: 50px;">P2:</span>
+                        <input type="number" id="buildX2" placeholder="X">
+                        <input type="number" id="buildZ2" placeholder="Z">
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group" style="margin-top: 15px;">
+                <button onclick="startSchematicBuild()" style="width: 100%; padding: 15px; font-size: 1.1em; background: #e67e22;" data-lang="btn_start_build">🚀 İNŞAATA BAŞLA</button>
+                <button onclick="sendCommand('/api/schematics/stop')" class="danger" style="width: 100%;" data-lang="btn_stop_build">🛑 DURDUR</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 data-lang="gen_h2">Genel Komutlar</h2>
+        <div class="input-group">
+            <input type="text" id="chatMessage" data-lang-ph="ph_chat" placeholder="Mesaj gönder..." style="width: 60%;">
+            <button onclick="sendChat('chatMessage')" data-lang="btn_send">Gönder</button>
+        </div>
+        <div class="input-group">
+            <input type="text" id="tpaUser" data-lang-ph="ph_tpa" placeholder="TPA Atılacak Oyuncu" style="width: 60%;">
+            <button onclick="sendChat('tpaUser', '/tpa ')" data-lang="btn_tpa">TPA Gönder</button>
+            <button onclick="sendCommand('/api/chat?message=/tpaccept')" class="info" data-lang="btn_accept">Kabul Et</button>
+        </div>
+        <div class="button-group">
+            <button onclick="sendCommand('/api/chat?message=/sethome')">SetHome</button>
+            <button onclick="sendCommand('/api/chat?message=/home')">Home</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 data-lang="log_h2">Canlı Konsol</h2>
+        <div id="log"></div>
+    </div>
+</body>
+</html>

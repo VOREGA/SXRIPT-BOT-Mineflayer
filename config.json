@@ -1,0 +1,19 @@
+{
+  "webPort": 3000,
+  "viewerPort": 3007,
+  "inventoryPort": 3008,
+  "username": "Sxriptbot",
+  "host": "server.addres.com",
+  "version": "1.16.5",
+  "password": "xxxxx",
+  "loginCommands": [
+    "/register xxxx xxxx",
+    "/login xxxx"
+  ],
+  "stateFileName": "bot_gorev_durumu.json",
+  "features": {
+    "excavator": true,
+    "cactusBuilder": true,
+    "farmer": false
+  }
+}
