@@ -9,6 +9,16 @@
 
 [🇺🇸 **English**](#-english) | [🇹🇷 **Türkçe**](#-türkçe)
 
+<br>
+
+<p align="center">
+  <img src="screenshots/screenshot1.PNG" alt="SXRIPT BOT Web Dashboard" width="48%" style="border-radius: 10px; margin-right: 10px;">
+  <img src="screenshots/screenshot2.PNG" alt="SXRIPT BOT Live Vision" width="48%" style="border-radius: 10px;">
+  <img src="screenshots/screenshot3.png" alt="SXRIPT BOT Live Vision" width="48%" style="border-radius: 10px;">
+</p>
+<i>Web Interface Dashboard & Live Vision (Prismarine Viewer)</i>
+<br><br>
+
 </div>
 
 ---
