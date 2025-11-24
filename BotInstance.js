@@ -162,9 +162,19 @@ class BotInstance {
     wrapStartCactus(fn) { return async (l) => { if (this.isBusy()) throw new Error("Meşgul."); return fn(l); }; }
     wrapStartPatrol(fn) { return async (b) => { if (this.isBusy()) throw new Error('Meşgul.'); this.deleteState(); this.excavationState = null; this.cactusState = null; this.patrolState = null; return fn(b); }; }
 
-    start() {
+start() {
         console.log(`[${this.config.username}] Bot oluşturuluyor... Host: ${this.config.host}`);
-        this.bot = mineflayer.createBot({ host: this.config.host, username: this.config.username, version: this.config.version });
+        
+        this.bot = mineflayer.createBot({ 
+            host: this.config.host, 
+            username: this.config.username, 
+            version: this.config.version,
+            brand: 'vanilla' // <-- Sunucuya kendini orijinal oyun olarak tanıtır
+        });
+
+        // İstediğin log mesajı burada:
+        console.log(`[${this.config.username}] Brand 'vanilla' olarak ayarlandı.`);
+
         this.bot.loadPlugin(pathfinder);
         this.bot.loadPlugin(toolPlugin);
         this.bot.once('spawn', () => { if (!this.bot.tool) console.error("deneme logu."); });
