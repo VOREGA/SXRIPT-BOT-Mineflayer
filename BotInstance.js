@@ -132,15 +132,15 @@ class BotInstance {
                 if (this.FenceFarmer.logPlaceCoords) this.logPlaceCoords = this.FenceFarmer.logPlaceCoords.bind(this);
                 
                 if (this.config.features.cactusBuilder) {
-                    // --- NORMAL BAŞLATMA ---
-                    this.startFenceCactus = this.wrapStartCactus(this.FenceFarmer.startCactusTask.bind(this));
-                    this.startIpliCactus = this.wrapStartCactus(this.IpliFarmer.startCactusTask.bind(this));
-                    this.startTersCactus  = this.wrapStartCactus(this.TersFarmer.startCactusTask.bind(this));
+                // --- NORMAL BAŞLATMA (İkinci parametre false) ---
+                this.startFenceCactus = this.wrapStartCactus(this.FenceFarmer.startCactusTask.bind(this), false);
+                this.startIpliCactus = this.wrapStartCactus(this.IpliFarmer.startCactusTask.bind(this), false);
+                this.startTersCactus  = this.wrapStartCactus(this.TersFarmer.startCactusTask.bind(this), false);
 
-                    // --- HIZLI BAŞLATMA ---
-                    this.startHizliFenceCactus = this.wrapStartCactus(this.HizliFenceFarmer.startCactusTask.bind(this));
-                    this.startHizliIpliCactus = this.wrapStartCactus(this.HizliIpliFarmer.startCactusTask.bind(this));
-                    this.startHizliTersCactus = this.wrapStartCactus(this.HizliTersFarmer.startCactusTask.bind(this));
+                // --- HIZLI BAŞLATMA (İkinci parametre true) ---
+                this.startHizliFenceCactus = this.wrapStartCactus(this.HizliFenceFarmer.startCactusTask.bind(this), true);
+                this.startHizliIpliCactus = this.wrapStartCactus(this.HizliIpliFarmer.startCactusTask.bind(this), true);
+                this.startHizliTersCactus = this.wrapStartCactus(this.HizliTersFarmer.startCactusTask.bind(this), true);
                 }
 
                 if (this.config.features.farmer) {
@@ -154,12 +154,20 @@ class BotInstance {
                 }
             } catch(e) { console.error("HATA: Farmer modülleri yüklenemedi.", e); }
         }
-    } // <--- İŞTE BU PARANTEZ EKSİKTİ
+    } 
 
     // Wrappers
     wrapGoTo(fn) { return async (pos) => { if (this.isBusy()) throw new Error('Bot meşgul.'); return fn(pos); }; }
     wrapStartExcavate(fn) { return (b) => { if (!this.bot || !this.bot.entity) throw new Error('Bot yok.'); if (this.isBusy()) throw new Error('Meşgul.'); return fn(b); }; }
-    wrapStartCactus(fn) { return async (l) => { if (this.isBusy()) throw new Error("Meşgul."); return fn(l); }; }
+    wrapStartCactus(fn, isFast = false) { 
+    return async (l) => { 
+        if (this.isBusy()) throw new Error("Meşgul."); 
+        const result = await fn(l);
+        // Görev başladıktan sonra state içine hızlı mı normal mi olduğunu ekle
+        if (this.cactusState) this.cactusState.isFast = isFast; 
+        return result; 
+    }; 
+}
     wrapStartPatrol(fn) { return async (b) => { if (this.isBusy()) throw new Error('Meşgul.'); this.deleteState(); this.excavationState = null; this.cactusState = null; this.patrolState = null; return fn(b); }; }
 
 start() {
@@ -232,15 +240,25 @@ start() {
             if (state && state.task) {
                 console.log(`[${this.config.username}] [Durum] Kayıtlı görev: ${state.task}`);
                 if (state.task === 'excavate') { this.excavationState = state; this.checkDistanceAndRestart(state); } 
-                else if (state.task === 'cactus') {
-                    this.cactusState = state;
-                    const subType = state.subType || 'fence';
-                    // Güvenlik için bot yeniden başlatıldığında her zaman NORMAL (Hızlı olmayan) modda devam et
-                    // Çünkü "Hızlı" modlarda güvenlik kontrolleri kapalıdır.
-                    if (subType === 'ipli') this.IpliFarmer.checkDistanceAndRestartCactus.call(this, state);
-                    else if (subType === 'ters') this.TersFarmer.checkDistanceAndRestartCactus.call(this, state);
-                    else this.FenceFarmer.checkDistanceAndRestartCactus.call(this, state);
-                }
+else if (state.task === 'cactus') {
+    this.cactusState = state;
+    const subType = state.subType || 'fence';
+    const isFast = state.isFast || false; // Kayıtlı dosyadan hızlı mı diye kontrol et
+
+    console.log(`[Sistem] Kaktüs görevi geri yükleniyor. Tip: ${subType}, Mod: ${isFast ? 'HIZLI ⚡' : 'Normal'}`);
+
+    if (isFast) {
+        // --- HIZLI MODÜLLERDEN DEVAM ET ---
+        if (subType === 'ipli') this.HizliIpliFarmer.checkDistanceAndRestartCactus.call(this, state);
+        else if (subType === 'ters') this.HizliTersFarmer.checkDistanceAndRestartCactus.call(this, state);
+        else this.HizliFenceFarmer.checkDistanceAndRestartCactus.call(this, state);
+    } else {
+        // --- NORMAL MODÜLLERDEN DEVAM ET ---
+        if (subType === 'ipli') this.IpliFarmer.checkDistanceAndRestartCactus.call(this, state);
+        else if (subType === 'ters') this.TersFarmer.checkDistanceAndRestartCactus.call(this, state);
+        else this.FenceFarmer.checkDistanceAndRestartCactus.call(this, state);
+    }
+}
                 else if (state.task === 'patrol') { this.patrolState = state; this.checkDistanceAndRestartPatrol(state); }
                 
                 else if (state.task === 'schematic_build') {
@@ -266,8 +284,30 @@ start() {
             this.bot.on('chat', (u, m) => { if(this.handleSellGUI) this.handleSellGUI(u, m); });
         }
         
+        // --- GÜNCELLENMİŞ PHYSIC TICK ---
         this.bot.on('physicTick', () => {
-            if (this.bot && this.bot.entity && !this.isPausedForEating && !this.isBusy() && !this.bot.isEating) this.checkAndEat(false);
+            if (!this.bot || !this.bot.entity) return;
+
+            // 1. Yemek Yeme Kontrolü (Orijinal Kod)
+            if (!this.isPausedForEating && !this.isBusy() && !this.bot.isEating) {
+                this.checkAndEat(false);
+            }
+
+            // 2. SCAFFOLDING (İSKELE) KORUMASI (YENİ)
+            // Eğer bot 'scaffolding' bloğunun üzerindeyse, ASLA eğilmesine (sneak) izin verme.
+            try {
+                // Botun ayağının bastığı blok (y-0.5 güvenli aralıktır)
+                const blockBelow = this.bot.blockAt(this.bot.entity.position.offset(0, -0.5, 0));
+                
+                if (blockBelow && (blockBelow.name === 'scaffolding' || blockBelow.name === 'scaffold')) {
+                    // Eğer bot şu an sneak (shift) basıyorsa, bunu zorla kapat
+                    if (this.bot.getControlState('sneak')) {
+                        this.bot.setControlState('sneak', false);
+                    }
+                }
+            } catch (err) {
+                // Hata olursa botu durdurmasın
+            }
         });
         
         this.bot.on('blockUpdate', (oldBlock, newBlock) => {
