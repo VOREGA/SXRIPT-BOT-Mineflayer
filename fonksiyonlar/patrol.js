@@ -8,52 +8,89 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 async function startPatrol(bounds) {
     // 'this' BotInstance'ı referans alır
     
-    // 1. Önce durumu kaydet (Kick yerse hatırlasın diye)
-    // Eğer zaten bir state'den geliyorsak (restart) tekrar kaydetmeye gerek yok ama zararı da olmaz.
+    // 1. Durumu kaydet
     if (!this.patrolState) {
         this.patrolState = {
             task: 'patrol',
             bounds: bounds
         };
-        this.saveState(); // State.js üzerinden kaydet
+        this.saveState(); 
     }
 
     console.log(`[${this.config.username}] [Patrol] Devriye görevi aktif. Alan: X[${bounds.minX}~${bounds.maxX}] Z[${bounds.minZ}~${bounds.maxZ}]`);
     this.isPatrolling = true;
 
-    while (this.isPatrolling) {
-        if (!this.bot || !this.bot.entity) break;
+    // Pathfinder ayarlarını güncelle (Takılmaları önlemek için)
+    // Eğer hedefe gidemezse daha hızlı pes etsin ve yeni hedef seçsin
+    if (this.bot && this.bot.pathfinder) {
+        this.bot.pathfinder.thinkTimeout = 5000; // Düşünme süresi sınırı
+    }
 
-        // Hedef belirle
+    while (this.isPatrolling) {
+        // Bot düşmüşse veya yoksa döngüyü kır
+        if (!this.bot || !this.bot.entity) {
+            console.log(`[${this.config.username}] [Patrol] Bot yok, döngü durduruluyor.`);
+            break;
+        }
+
+        // --- 1. AÇLIK KONTROLÜ (YENİ) ---
+        // BotInstance'daki otomatik yemek sistemi 'Meşgul' iken çalışmaz.
+        // Bu yüzden burada manuel çağırıyoruz. true = Görevi duraklatarak ye.
+        try {
+            await this.checkAndEat(true);
+        } catch (e) {
+            console.error(`[${this.config.username}] [Patrol] Yemek yerken hata (önemsiz):`, e.message);
+        }
+
+        // Eğer yemek yerken patrol durdurulduysa döngüden çık
+        if (!this.isPatrolling) break;
+
+
+        // --- 2. HEDEF BELİRLEME ---
         const randomX = Math.floor(Math.random() * (bounds.maxX - bounds.minX + 1)) + bounds.minX;
         const randomZ = Math.floor(Math.random() * (bounds.maxZ - bounds.minZ + 1)) + bounds.minZ;
+        
+        // Yükseklik için botun olduğu seviyeyi veya varsa world height'ı al
+        // Botun olduğu Y seviyesini hedeflemek en güvenlisidir, pathfinder yukarı/aşağı çözer.
         const currentY = this.bot.entity.position.y;
         
-        console.log(`[${this.config.username}] [Patrol] Hedefe gidiliyor: X:${randomX} Z:${randomZ}`);
+        console.log(`[${this.config.username}] [Patrol] Yeni hedef: X:${randomX} Z:${randomZ}`);
 
         try {
+            // Önceki hedefleri temizle
+            this.bot.pathfinder.setGoal(null);
+
+            // Gitmeye çalış
             await this.bot.pathfinder.goto(new GoalNear(randomX, currentY, randomZ, 1));
             
-            // Hedefe varınca bekle ve zıpla
-            console.log(`[${this.config.username}] [Patrol] Hedefe ulaşıldı.`);
-            
-            if (Math.random() > 0.5) {
+            // --- 3. HEDEFE VARINCA YAPILACAKLAR ---
+            // Sadece %30 ihtimalle zıplasın (Sürekli zıplarsa açlık hızlı düşer)
+            if (Math.random() > 0.7) {
                 this.bot.setControlState('jump', true);
                 await sleep(300);
                 this.bot.setControlState('jump', false);
             }
             
+            // Biraz bekle (2 ile 5 saniye arası)
             const waitTime = Math.floor(Math.random() * 3000) + 2000;
             await sleep(waitTime);
 
         } catch (err) {
-            console.warn(`[${this.config.username}] [Patrol] Yol hatası, yeni hedef seçiliyor...`);
+            // --- 4. HATA YAKALAMA (TAKILMAYI ÖNLER) ---
+            // Eğer yol bulamazsa veya takılırsa buraya düşer.
+            // Döngüyü kırmıyoruz, sadece loglayıp yeni hedef seçiyoruz.
+            console.warn(`[${this.config.username}] [Patrol] Hedefe gidilemedi (${err.message}). Yeni hedef seçiliyor...`);
+            
+            // Pathfinder'ı durdur ki takılı kalmasın
+            this.bot.pathfinder.stop();
+            
+            // Hata durumunda çok hızlı döngüye girmemesi için az bekle
             await sleep(2000);
         }
     }
 }
 
-// --- YENİ: MESAFE KONTROL VE RESET ---
+// --- MESAFE KONTROL VE RESET ---
 function checkDistanceAndRestartPatrol(savedState) {
     // 'this' BotInstance'ı referans alır
     if (this.resumeCheckTimer) clearTimeout(this.resumeCheckTimer);
@@ -63,33 +100,33 @@ function checkDistanceAndRestartPatrol(savedState) {
         return;
     }
 
-    // Eğer kullanıcı arayüzden durdurduysa iptal et
     if (!this.patrolState) {
-        console.log(`[${this.config.username}] [Patrol] Görev iptal edilmiş, kontrol durduruluyor.`);
         return;
     }
 
     const bounds = savedState.bounds;
-    // Alanın merkezini bul
     const centerX = (bounds.minX + bounds.maxX) / 2;
     const centerZ = (bounds.minZ + bounds.maxZ) / 2;
     const botPos = this.bot.entity.position;
     
-    // Basit Öklid mesafesi (Y'yi ihmal ediyoruz, sadece yatay mesafe)
     const dx = botPos.x - centerX;
     const dz = botPos.z - centerZ;
     const distance = Math.sqrt(dx*dx + dz*dz);
 
-    console.log(`[${this.config.username}] [Patrol Kontrol] Merkeze mesafe: ${distance.toFixed(1)} blok.`);
+    // console.log(`[${this.config.username}] [Patrol Kontrol] Merkeze mesafe: ${distance.toFixed(1)}`);
 
     if (distance > 200) {
-        console.log(`[${this.config.username}] [Patrol Kontrol] Alanın çok uzağındayım (>200 blok). Beklemedeyim...`);
-        // 10 saniye sonra tekrar kontrol et
+        console.log(`[${this.config.username}] [Patrol] Alanın çok uzağındayım. Bekleniyor...`);
         this.resumeCheckTimer = setTimeout(() => checkDistanceAndRestartPatrol.call(this, savedState), 10000);
     } else {
-        console.log(`[${this.config.username}] [Patrol Kontrol] Alana yakınım/içindeyim. Devriye başlıyor!`);
-        this.isPatrolling = true;
-        startPatrol.call(this, bounds); // Döngüyü başlat
+        // Eğer bot boşta görünüyorsa ve patrolState varsa, görevi tekrar tetikle
+        if (!this.isPatrolling) {
+            console.log(`[${this.config.username}] [Patrol] Bot alana geri dönmüş/bağlanmış. Devriye tekrar başlatılıyor.`);
+            startPatrol.call(this, bounds);
+        } else {
+            // Zaten çalışıyorsa sadece kontrol etmeye devam et
+            this.resumeCheckTimer = setTimeout(() => checkDistanceAndRestartPatrol.call(this, savedState), 10000);
+        }
     }
 }
 
